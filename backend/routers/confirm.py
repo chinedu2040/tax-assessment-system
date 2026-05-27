@@ -99,7 +99,11 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
     report_filename = f"tax_report_{comp.computation_id}.pdf"
     report_path = str(report_dir / report_filename)
 
-    generate_report(result, txn_dicts, user_info, report_path)
+    try:
+        generate_report(result, txn_dicts, user_info, report_path)
+    except Exception as e:
+        logger.error(f"PDF generation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
     db.add(AuditLog(
         user_id=payload.user_id,
@@ -127,13 +131,13 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
                 details={"document_id": payload.document_id, "file_path": str(upload_path)},
             ))
         except Exception as e:
+            # Log deletion failure but don't abort — report is already generated
             logger.error(f"Failed to delete source file {upload_path}: {e}")
             db.add(AuditLog(
                 user_id=payload.user_id,
                 action="file_delete_failed",
                 details={"error": str(e), "file_path": str(upload_path)},
             ))
-            raise HTTPException(500, f"Source file deletion failed: {e}")
 
     db.commit()
     db.refresh(tax_report)

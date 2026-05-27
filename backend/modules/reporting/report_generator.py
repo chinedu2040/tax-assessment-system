@@ -56,7 +56,10 @@ MID_GREY = colors.HexColor("#757575")
 
 
 def _fmt_naira(amount: float) -> str:
-    return f"₦{amount:,.2f}"
+    # Use ₦ only when a Unicode font is loaded; fall back to NGN to avoid
+    # UnicodeEncodeError with Helvetica (Latin-1 encoding).
+    symbol = "₦" if BODY_FONT not in ("Helvetica", "Helvetica-Bold") else "NGN "
+    return f"{symbol}{amount:,.2f}"
 
 
 def _fmt_pct(rate: float) -> str:
