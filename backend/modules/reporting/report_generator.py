@@ -11,6 +11,41 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Register DejaVu fonts (include Naira sign U+20A6 and full Unicode)
+_DEJAVU_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+]
+_DEJAVU_BOLD_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+]
+
+BODY_FONT = BODY_FONT
+BOLD_FONT = BOLD_FONT
+
+for _p in _DEJAVU_PATHS:
+    if Path(_p).exists():
+        try:
+            pdfmetrics.registerFont(TTFont("DejaVuSans", _p))
+            BODY_FONT = "DejaVuSans"
+        except Exception:
+            pass
+        break
+
+for _p in _DEJAVU_BOLD_PATHS:
+    if Path(_p).exists():
+        try:
+            pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", _p))
+            BOLD_FONT = "DejaVuSans-Bold"
+        except Exception:
+            pass
+        break
 
 NIGERIAN_GREEN = colors.HexColor("#008751")
 LIGHT_GREEN = colors.HexColor("#e8f5e9")
@@ -96,8 +131,8 @@ def generate_report(
     meta_table = Table(meta_data, colWidths=[3 * cm, 7 * cm, 3 * cm, 4 * cm])
     meta_table.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (0, -1), BOLD_FONT),
+        ("FONTNAME", (2, 0), (2, -1), BOLD_FONT),
         ("TEXTCOLOR", (0, 0), (-1, -1), DARK_GREY),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
@@ -127,14 +162,14 @@ def generate_report(
     summary_style = TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, LIGHT_GREEN]),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("FONTNAME", (0, len(summary_rows) - 3), (-1, len(summary_rows) - 1), "Helvetica-Bold"),
+        ("FONTNAME", (0, len(summary_rows) - 3), (-1, len(summary_rows) - 1), BOLD_FONT),
         ("BACKGROUND", (0, len(summary_rows) - 2), (-1, len(summary_rows) - 1), LIGHT_GREEN),
     ])
     summary_table.setStyle(summary_style)
@@ -159,12 +194,12 @@ def generate_report(
     band_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -2), [WHITE, LIGHT_GREEN]),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("FONTNAME", (0, -1), (-1, -1), BOLD_FONT),
         ("BACKGROUND", (0, -1), (-1, -1), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, -1), (-1, -1), WHITE),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
@@ -209,11 +244,11 @@ def generate_report(
     txn_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
         ("ROWBACKGROUNDS", (0, 1), (-1, -2), [WHITE, LIGHT_GREEN]),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("FONTNAME", (0, -1), (-1, -1), BOLD_FONT),
         ("BACKGROUND", (0, -1), (-1, -1), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, -1), (-1, -1), WHITE),
         ("TOPPADDING", (0, 0), (-1, -1), 3),

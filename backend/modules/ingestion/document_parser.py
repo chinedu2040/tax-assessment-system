@@ -85,6 +85,41 @@ def parse_excel(file_bytes: bytes) -> List[Dict[str, Any]]:
     return _df_to_raw(best_df, "excel")
 
 
+def _pdf_text_fallback(file_bytes: bytes) -> List[Dict[str, Any]]:
+    """Extract transactions from PDFs with no grid lines (e.g. pdfkit output)."""
+    import pdfplumber
+    date_re = re.compile(
+        r"\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}"
+        r"|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}"
+        r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4})\b",
+        re.IGNORECASE,
+    )
+    amount_re = re.compile(r"[\d,]+\.\d{2}")
+    records = []
+    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            for line in text.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                d = date_re.search(line)
+                amounts = amount_re.findall(line)
+                if d and amounts:
+                    date_str = d.group()
+                    desc_part = line[d.end():].strip()
+                    # Remove all amounts from description
+                    for a in amounts:
+                        desc_part = desc_part.replace(a, "").strip()
+                    desc_part = re.sub(r"\s{2,}", " ", desc_part).strip() or line
+                    records.append({
+                        "date": date_str,
+                        "description": desc_part,
+                        "_signed_amount": amounts[0],
+                    })
+    return records
+
+
 def parse_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
     import pdfplumber
 
@@ -106,6 +141,10 @@ def parse_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
                     records.append(rec)
 
     if not records:
+        # Try line-by-line text extraction before OCR (handles pdfkit/non-grid PDFs)
+        text_records = _pdf_text_fallback(file_bytes)
+        if text_records:
+            return normalise(text_records, "pdf")
         return parse_scanned_pdf(file_bytes)
 
     normalized_records = []
