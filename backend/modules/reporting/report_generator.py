@@ -26,8 +26,8 @@ _DEJAVU_BOLD_PATHS = [
     "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
 ]
 
-BODY_FONT = BODY_FONT
-BOLD_FONT = BOLD_FONT
+BODY_FONT = "Helvetica"
+BOLD_FONT = "Helvetica-Bold"
 
 for _p in _DEJAVU_PATHS:
     if Path(_p).exists():
