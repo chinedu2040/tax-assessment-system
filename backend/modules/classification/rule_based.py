@@ -4,8 +4,12 @@ RULES = {
     "taxable_income": {
         "freelance_income": [
             "upwork", "fiverr", "toptal", "payoneer", "wise transfer",
-            "transferwise", "client payment", "project payment", "freelance",
-            "consultancy fee", "professional fee", "invoice payment",
+            "transferwise", "client payment", "client retainer", "client advance",
+            "project payment", "freelance", "consultancy fee", "consulting fee",
+            "professional fee", "invoice payment", "retainer fee",
+            "design fee", "development fee", "service fee", "service payment",
+            "web design", "logo design", "brand", "ui/ux", "motion graphics",
+            "photography", "seo", "content writing", "graphic design",
             "remittance", "guru.com", "freelancer.com",
         ],
         "salary": [
@@ -14,6 +18,7 @@ RULES = {
         ],
         "business_income": [
             "sales proceeds", "business income", "revenue", "proceeds",
+            "media house", "enterprises",
         ],
         "crypto_income": [
             "binance", "coinbase", "crypto", "bitcoin", "ethereum",

@@ -41,8 +41,8 @@ def _seed_statutory_parameters(db):
     }
     for key, value in defaults.items():
         db.add(StatutoryParameter(
-            parameter_name=key,
-            parameter_value=str(value),
+            param_key=key,
+            param_value=float(value),
             effective_year=2024,
             description=f"FIRS 2024 — {key}",
         ))
