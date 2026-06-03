@@ -32,6 +32,8 @@ export default function ReviewStep({ uploadData, onConfirmComplete }) {
         })),
         user_id: uploadData.user_id,
         tax_year: new Date().getFullYear(),
+        state_of_residence: uploadData.state_of_residence || null,
+        bank_name: uploadData.bank_name || null,
       }
       const result = await confirmTransactions(payload)
       onConfirmComplete(result)

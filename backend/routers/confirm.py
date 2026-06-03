@@ -61,13 +61,19 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
         for t in all_txns
     ]
 
-    result = compute_tax(txn_dicts, payload.user_id, payload.tax_year, db)
+    result = compute_tax(txn_dicts, payload.user_id, payload.tax_year, db, payload.state_of_residence)
 
     db.add(AuditLog(
         user_id=payload.user_id,
         action="tax_computed",
         details={"tax_year": payload.tax_year, "tax_liability": result["tax_liability"]},
     ))
+
+    # Resolve bank_name from document if not in payload
+    bank_name = payload.bank_name
+    if not bank_name:
+        doc_for_bank = db.query(Document).filter(Document.document_id == payload.document_id).first()
+        bank_name = doc_for_bank.bank_name if doc_for_bank else None
 
     comp = TaxComputation(
         user_id=payload.user_id,
@@ -82,8 +88,11 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
         other_deductions=result["other_deductions"],
         taxable_income=result["taxable_income"],
         tax_liability=result["tax_liability"],
+        development_levy=result["development_levy"],
+        total_tax_payable=result["total_tax_payable"],
         effective_rate=result["effective_rate"],
         band_breakdown=result["band_breakdown"],
+        state_of_residence=result["state_of_residence"],
     )
     db.add(comp)
     db.flush()
@@ -92,6 +101,9 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
     user_info = {
         "full_name": user.full_name if user else "Unknown",
         "tin": user.tin if user else "N/A",
+        "bank_name": bank_name or "Not specified",
+        "state_of_residence": result["state_of_residence"],
+        "state_irs": result["state_irs"],
     }
 
     report_dir = Path(settings.report_dir)
@@ -155,8 +167,12 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
         other_deductions=result["other_deductions"],
         taxable_income=result["taxable_income"],
         tax_liability=result["tax_liability"],
+        development_levy=result["development_levy"],
+        total_tax_payable=result["total_tax_payable"],
         effective_rate=result["effective_rate"],
         band_breakdown=[BandBreakdown(**b) for b in result["band_breakdown"]],
+        state_of_residence=result["state_of_residence"],
+        state_irs=result["state_irs"],
     )
 
     return ConfirmResponse(

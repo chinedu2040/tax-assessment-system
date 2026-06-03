@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 import logging
 import os
+from sqlalchemy import text
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,26 @@ from routers import upload, confirm, report
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+
+def _migrate_columns(engine):
+    """Add new columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100)",
+        "ALTER TABLE tax_computations ADD COLUMN IF NOT EXISTS development_levy NUMERIC(15,2)",
+        "ALTER TABLE tax_computations ADD COLUMN IF NOT EXISTS total_tax_payable NUMERIC(15,2)",
+        "ALTER TABLE tax_computations ADD COLUMN IF NOT EXISTS state_of_residence VARCHAR(100)",
+    ]
+    try:
+        with engine.connect() as conn:
+            for sql in migrations:
+                try:
+                    conn.execute(text(sql))
+                except Exception:
+                    pass  # Column may already exist or DB may not support IF NOT EXISTS
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Column migration skipped: {e}")
 
 
 def _seed_statutory_parameters(db):
@@ -57,10 +78,12 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.report_dir, exist_ok=True)
 
     # Create all DB tables
-    from database import init_db, SessionLocal
+    from database import init_db, SessionLocal, engine
     try:
         init_db()
         logger.info("Database tables created/verified.")
+        # Add new columns that may not exist in already-created tables
+        _migrate_columns(engine)
         db = SessionLocal()
         try:
             _seed_statutory_parameters(db)

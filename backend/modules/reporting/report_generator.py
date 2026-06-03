@@ -130,6 +130,10 @@ def generate_report(
          "Tax Year:", str(computation.get("tax_year", "N/A"))],
         ["TIN:", user_info.get("tin", "Not Provided"),
          "Generated:", datetime.now().strftime("%d %B %Y")],
+        ["Bank / Fintech:", user_info.get("bank_name", "Not specified"),
+         "State:", user_info.get("state_of_residence", "Not specified")],
+        ["State IRS:", user_info.get("state_irs", "FIRS"),
+         "", ""],
     ]
     meta_table = Table(meta_data, colWidths=[3 * cm, 7 * cm, 3 * cm, 4 * cm])
     meta_table.setStyle(TableStyle([
@@ -157,7 +161,10 @@ def generate_report(
         ["NHIS Relief (5%)", _fmt_naira(computation["nhis_relief"])],
         ["Other Allowable Deductions", _fmt_naira(computation["other_deductions"])],
         ["Taxable Income", _fmt_naira(computation["taxable_income"])],
-        ["Tax Liability", _fmt_naira(computation["tax_liability"])],
+        ["Tax Liability (FIRS Progressive)", _fmt_naira(computation["tax_liability"])],
+        ["State Development Levy (" + str(computation.get("state_of_residence", "")) + ")",
+         _fmt_naira(computation.get("development_levy", 0))],
+        ["TOTAL TAX PAYABLE", _fmt_naira(computation.get("total_tax_payable", computation["tax_liability"]))],
         ["Effective Tax Rate", _fmt_pct(computation["effective_rate"])],
     ]
 

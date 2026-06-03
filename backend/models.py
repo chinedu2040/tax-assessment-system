@@ -37,6 +37,7 @@ class Document(Base):
     file_type = Column(String(20))
     upload_path = Column(Text)
     status = Column(String(50), default="uploaded")
+    bank_name = Column(String(100), nullable=True)
     uploaded_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     user = relationship("User", back_populates="documents")
@@ -80,8 +81,11 @@ class TaxComputation(Base):
     other_deductions = Column(Numeric(15, 2))
     taxable_income = Column(Numeric(15, 2))
     tax_liability = Column(Numeric(15, 2))
+    development_levy = Column(Numeric(15, 2), nullable=True)
+    total_tax_payable = Column(Numeric(15, 2), nullable=True)
     effective_rate = Column(Numeric(6, 4))
     band_breakdown = Column(JSONB)
+    state_of_residence = Column(String(100), nullable=True)
     computed_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     user = relationship("User", back_populates="tax_computations")

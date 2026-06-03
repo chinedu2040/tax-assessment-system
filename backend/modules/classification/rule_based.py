@@ -20,6 +20,10 @@ RULES = {
             "sales proceeds", "business income", "revenue", "proceeds",
             "media house", "enterprises",
         ],
+        "interest_income": [
+            "owealth interest", "interest earned", "investment income",
+            "dividend", "piggyvest interest", "cowrywise return",
+        ],
         "crypto_income": [
             "binance", "coinbase", "crypto", "bitcoin", "ethereum",
             "usdt", "blockchain", "p2p transfer", "bybit", "kucoin",
@@ -44,7 +48,7 @@ RULES = {
         "internet": [
             "mtn", "airtel", "glo", "9mobile", "spectranet", "swift",
             "smile", "internet", "data subscription", "broadband",
-            "data bundle", "wifi subscription",
+            "data bundle", "wifi subscription", "mobile data |",
         ],
         "utilities": [
             "nepa", "disco", "electricity", "ikedc", "ekedc", "bedc",
@@ -78,6 +82,19 @@ RULES = {
         ],
         "atm": [
             "atm withdrawal", "cash withdrawal", "pos purchase",
+        ],
+        "savings": [
+            "owealth withdrawal", "auto-save", "owealth balance",
+            "savings deposit", "fixed deposit", "target savings",
+            "piggybank", "cowrywise", "risevest", "bamboo",
+        ],
+        "bank_charge": [
+            "electronic money transfer levy", "stamp duty", "sms alert",
+            "maintenance fee", "card maintenance", "vat on ", "commission on",
+            "bank charge", "service charge",
+        ],
+        "airtime_data": [
+            "airtime recharge", "airtime |", "vtu airtime",
         ],
     },
 }

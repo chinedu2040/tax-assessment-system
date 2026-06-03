@@ -10,20 +10,43 @@ from modules.ingestion.normaliser import normalise
 
 logger = logging.getLogger(__name__)
 
-DATE_COLS = ["Trans. Date", "Transaction Date", "Value Date", "Date", "Txn Date", "BookingDate", "date"]
-DESC_COLS = ["Narration", "Description", "Details", "Remarks", "Transaction Details", "Particulars", "description"]
-DEBIT_COLS = ["Debit", "Withdrawals", "Dr", "Debit Amount"]
-CREDIT_COLS = ["Credit", "Deposits", "Cr", "Credit Amount"]
+DATE_COLS = ["Trans. Date", "Transaction Date", "Value Date", "Date", "Txn Date", "BookingDate", "date", "Trans Date"]
+DESC_COLS = ["Narration", "Description", "Details", "Remarks", "Transaction Details", "Particulars", "description", "Memo"]
+DEBIT_COLS = ["Debit", "Withdrawals", "Dr", "Debit Amount", "Debit("]
+CREDIT_COLS = ["Credit", "Deposits", "Cr", "Credit Amount", "Credit("]
 AMOUNT_COLS = ["Amount", "amount"]
-BALANCE_COLS = ["Balance", "Running Balance", "Ledger Balance"]
+BALANCE_COLS = ["Balance", "Running Balance", "Ledger Balance", "Balance After"]
+
+ALL_HEADER_CANDIDATES = DATE_COLS + DESC_COLS + DEBIT_COLS + CREDIT_COLS + AMOUNT_COLS
 
 
 def _find_col(df_cols, candidates):
+    """Find column by exact match first, then prefix match (handles 'Debit(₦)' etc)."""
     for c in candidates:
+        c_lower = c.lower()
         for col in df_cols:
-            if col.strip().lower() == c.lower():
+            col_lower = col.strip().lower()
+            if col_lower == c_lower or col_lower.startswith(c_lower):
                 return col
     return None
+
+
+def _find_header_row(df_raw) -> int:
+    """Scan first 20 rows to find the actual header row (handles OPay metadata rows)."""
+    candidates_lower = [c.lower() for c in ALL_HEADER_CANDIDATES]
+    best_row, best_score = 0, 0
+    for idx, row in df_raw.iterrows():
+        if idx > 20:
+            break
+        score = 0
+        for val in row:
+            v = str(val).strip().lower()
+            if any(v == c or v.startswith(c) for c in candidates_lower):
+                score += 1
+        if score > best_score:
+            best_score = score
+            best_row = idx
+    return best_row if best_score >= 2 else 0
 
 
 def _df_to_raw(df: pd.DataFrame, source_format: str) -> List[Dict[str, Any]]:
@@ -64,25 +87,32 @@ def parse_csv(file_bytes: bytes) -> List[Dict[str, Any]]:
     raise ValueError("Could not parse CSV with any supported encoding")
 
 
+def _parse_sheet(xf, sheet) -> List[Dict[str, Any]]:
+    """Parse a single Excel sheet with smart header row detection."""
+    try:
+        raw = xf.parse(sheet, header=None)
+        header_row = _find_header_row(raw)
+        df = xf.parse(sheet, header=header_row)
+        df.columns = [str(c).strip() for c in df.columns]
+        # Drop rows that are all NaN or all "--"
+        df = df.dropna(how="all")
+        return _df_to_raw(df, "excel")
+    except Exception as e:
+        logger.warning(f"Sheet '{sheet}' parse failed: {e}")
+        return []
+
+
 def parse_excel(file_bytes: bytes) -> List[Dict[str, Any]]:
     xf = pd.ExcelFile(io.BytesIO(file_bytes))
-    best_df = None
-    best_count = -1
+    all_records: List[Dict[str, Any]] = []
 
     for sheet in xf.sheet_names:
-        try:
-            df = xf.parse(sheet)
-            df.columns = [str(c).strip() for c in df.columns]
-            count = sum(1 for c in df.columns if _find_col([c], DATE_COLS + DESC_COLS + AMOUNT_COLS + DEBIT_COLS))
-            if count > best_count:
-                best_count = count
-                best_df = df
-        except Exception:
-            continue
+        records = _parse_sheet(xf, sheet)
+        all_records.extend(records)
 
-    if best_df is None:
-        raise ValueError("Could not find a valid sheet in Excel file")
-    return _df_to_raw(best_df, "excel")
+    if not all_records:
+        raise ValueError("Could not find any transactions in Excel file")
+    return all_records
 
 
 def _pdf_text_fallback(file_bytes: bytes) -> List[Dict[str, Any]]:

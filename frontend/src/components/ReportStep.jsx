@@ -34,6 +34,18 @@ export default function ReportStep({ confirmData }) {
         Based on FIRS 2024 Personal Income Tax Act guidelines.
       </p>
 
+      {/* State & bank info bar */}
+      {(computation.state_of_residence || computation.state_irs) && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6 flex flex-wrap gap-4 text-sm">
+          {computation.state_of_residence && (
+            <span><span className="font-semibold text-green-800">State:</span> <span className="text-green-700">{computation.state_of_residence}</span></span>
+          )}
+          {computation.state_irs && (
+            <span><span className="font-semibold text-green-800">IRS:</span> <span className="text-green-700">{computation.state_irs}</span></span>
+          )}
+        </div>
+      )}
+
       {/* Summary cards 2×2 */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <SummaryCard
@@ -57,10 +69,24 @@ export default function ReportStep({ confirmData }) {
           sub="After all deductions"
         />
         <SummaryCard
-          label="Tax Liability"
+          label="FIRS Tax Liability"
           value={fmtNaira(computation.tax_liability)}
           sub={`Effective rate: ${Number(computation.effective_rate || 0).toFixed(2)}%`}
         />
+        {(computation.development_levy > 0) && (
+          <SummaryCard
+            label="State Development Levy"
+            value={fmtNaira(computation.development_levy)}
+            sub={computation.state_of_residence || ''}
+          />
+        )}
+        {(computation.total_tax_payable > 0) && (
+          <SummaryCard
+            label="Total Tax Payable"
+            value={fmtNaira(computation.total_tax_payable)}
+            sub="FIRS tax + State levy"
+          />
+        )}
       </div>
 
       {/* Effective rate banner */}

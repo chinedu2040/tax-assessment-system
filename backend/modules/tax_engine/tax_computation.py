@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from modules.tax_engine.statutory_rules import load_parameters, DEFAULT_PARAMS
+from modules.tax_engine.state_rates import get_state_info
 
 
 def compute_tax(
@@ -9,6 +10,7 @@ def compute_tax(
     user_id: str,
     tax_year: int,
     db: Optional[Session] = None,
+    state_of_residence: Optional[str] = None,
 ) -> Dict[str, Any]:
     try:
         params = load_parameters(db) if db else DEFAULT_PARAMS
@@ -87,6 +89,11 @@ def compute_tax(
     if tax_liability < minimum_tax:
         tax_liability = minimum_tax
 
+    # State development levy
+    state_info = get_state_info(state_of_residence or "")
+    development_levy = float(state_info["development_levy"])
+    total_tax_payable = tax_liability + development_levy
+
     effective_rate = (tax_liability / gross_income * 100) if gross_income > 0 else 0.0
 
     return {
@@ -102,6 +109,10 @@ def compute_tax(
         "other_deductions": round(total_deductions, 2),
         "taxable_income": round(taxable_income, 2),
         "tax_liability": round(tax_liability, 2),
+        "development_levy": round(development_levy, 2),
+        "total_tax_payable": round(total_tax_payable, 2),
         "effective_rate": round(effective_rate, 4),
         "band_breakdown": band_breakdown,
+        "state_of_residence": state_of_residence or "Not specified",
+        "state_irs": state_info["irs"],
     }

@@ -23,8 +23,12 @@ class TaxComputation(BaseModel):
     other_deductions: float
     taxable_income: float
     tax_liability: float
+    development_levy: float = 0.0
+    total_tax_payable: float = 0.0
     effective_rate: float
     band_breakdown: List[BandBreakdown]
+    state_of_residence: Optional[str] = None
+    state_irs: Optional[str] = None
 
 
 class ConfirmRequest(BaseModel):
@@ -32,6 +36,8 @@ class ConfirmRequest(BaseModel):
     transactions: List[TransactionUpdate]
     user_id: str
     tax_year: int
+    state_of_residence: Optional[str] = None
+    bank_name: Optional[str] = None
 
 
 class ConfirmResponse(BaseModel):

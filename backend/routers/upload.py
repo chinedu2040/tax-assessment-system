@@ -32,6 +32,7 @@ MAX_SIZE_BYTES = settings.max_upload_size_mb * 1024 * 1024
 async def upload_document(
     file: UploadFile = File(...),
     user_id: str = Form(...),
+    bank_name: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
     ext = Path(file.filename).suffix.lower()
@@ -54,6 +55,7 @@ async def upload_document(
         file_type=ext.lstrip("."),
         upload_path=str(upload_path),
         status="uploaded",
+        bank_name=bank_name or None,
     )
     db.add(doc)
     db.flush()

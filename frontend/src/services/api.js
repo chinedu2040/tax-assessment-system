@@ -12,10 +12,11 @@ export async function createUser(payload) {
   return data
 }
 
-export async function uploadDocument(file, userId) {
+export async function uploadDocument(file, userId, bankName = '') {
   const form = new FormData()
   form.append('file', file)
   form.append('user_id', userId)
+  form.append('bank_name', bankName)
   const { data } = await api.post('/api/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
