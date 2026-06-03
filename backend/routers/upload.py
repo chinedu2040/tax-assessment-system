@@ -72,7 +72,14 @@ async def upload_document(
         logger.error(f"Parse error: {e}")
         raise HTTPException(422, f"Could not parse file: {e}")
 
+    # Cap at 2000 transactions to prevent timeout; prioritise by date desc
+    MAX_TXN = 2000
+    if len(raw_transactions) > MAX_TXN:
+        logger.warning(f"Capping {len(raw_transactions)} → {MAX_TXN} transactions")
+        raw_transactions = raw_transactions[:MAX_TXN]
+
     saved_txns = []
+    txn_objects = []
     for raw in raw_transactions:
         result = classify_transaction(raw.get("description", ""))
         txn = Transaction(
@@ -88,19 +95,24 @@ async def upload_document(
             confidence_score=result["confidence_score"],
             user_corrected=False,
         )
-        db.add(txn)
-        saved_txns.append(txn)
+        txn_objects.append(txn)
+
+    # Bulk insert for speed (handles hundreds/thousands without timeout)
+    db.bulk_save_objects(txn_objects, return_defaults=True)
 
     db.add(AuditLog(
         user_id=user_id,
         action="classified",
-        details={"document_id": doc.document_id, "transaction_count": len(saved_txns)},
+        details={"document_id": doc.document_id, "transaction_count": len(txn_objects)},
     ))
 
     doc.status = "classified"
     db.commit()
-    for t in saved_txns:
-        db.refresh(t)
+
+    # Re-query transactions for response (bulk_save_objects doesn't auto-refresh)
+    saved_txns = db.query(Transaction).filter(
+        Transaction.document_id == doc.document_id
+    ).all()
 
     def _txn_out(t: Transaction) -> TransactionOut:
         return TransactionOut(

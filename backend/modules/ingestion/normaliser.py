@@ -6,9 +6,13 @@ from typing import List, Dict, Any
 DATE_FORMATS = [
     "%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d",
     "%d-%m-%Y", "%Y/%m/%d",
+    "%d %b %Y %H:%M:%S",   # OPay: "28 Apr 2025 07:03:53"
+    "%d %b %Y %I:%M %p",   # OPay variant: "28 Apr 2025 07:03 AM"
     "%d %b %Y", "%d-%b-%Y", "%d-%b-%y",
     "%d.%m.%Y", "%Y.%m.%d",
     "%b %d, %Y", "%d %B %Y",
+    "%Y-%m-%d %H:%M:%S",   # ISO with time
+    "%Y-%m-%dT%H:%M:%S",   # ISO 8601
 ]
 
 
