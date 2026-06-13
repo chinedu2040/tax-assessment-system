@@ -11,7 +11,7 @@ from modules.ingestion.normaliser import normalise
 
 logger = logging.getLogger(__name__)
 
-DATE_COLS = ["Trans. Date", "Transaction Date", "Value Date", "Date", "Txn Date", "BookingDate", "date", "Trans Date"]
+DATE_COLS = ["Trans. Date", "Transaction Date", "Posting Date", "Value Date", "Date", "Txn Date", "BookingDate", "date", "Trans Date", "POSTING DATE"]
 DESC_COLS = ["Narration", "Description", "Details", "Remarks", "Transaction Details", "Particulars", "description", "Memo"]
 DEBIT_COLS  = ["Debit", "Withdrawals", "Dr", "Debit Amount", "Debit(", "Settlement Debit"]
 CREDIT_COLS = ["Credit", "Deposits", "Cr", "Credit Amount", "Credit(", "Settlement Credit"]

@@ -13,6 +13,7 @@ RULES = {
             "remittance", "guru.com", "freelancer.com",
             "physiotherapy", "physio", "therapy session", "therapy fee",
             "medical session", "clinic payment", "treatment fee",
+            "rehab", "rehabilitation", "home care", "health care service",
         ],
         "salary": [
             "salary", "salari", "monthly pay", "payroll", "wages",
@@ -86,6 +87,7 @@ RULES = {
         ],
         "refund": [
             "refund", "reversal", "chargeback", "dispute credit",
+            "pay back", "payback", "failed transfer reversal", "rev-nip-fee", "rev-vat-fee",
         ],
         "atm": [
             "atm withdrawal", "cash withdrawal", "pos purchase",
@@ -96,12 +98,16 @@ RULES = {
             "savings deposit", "fixed deposit", "target savings",
             "piggybank", "cowrywise", "risevest", "bamboo",
             "flexible savings", "auto save", "one year plan",
+            "money market", "uba nominee", "stanbic ibtc money",
+            "mutual fund", "treasury bill", "t-bill",
         ],
         "bank_charge": [
             "electronic money transfer levy", "stamp duty", "sms alert",
             "maintenance fee", "card maintenance", "vat on ", "commission on",
             "bank charge", "service charge",
             "emtl", "_emtl_dc", "value added tax", "transfer levy",
+            "electroniclevy", "cbn electroniclevy", "nip-fee", "vat-fee",
+            "alert charge", "quarterly debit", "card issuance fee",
         ],
         "airtime_data": [
             "airtime recharge", "airtime |", "vtu airtime",
