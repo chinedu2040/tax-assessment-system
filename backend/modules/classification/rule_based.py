@@ -12,7 +12,7 @@ RULES = {
             "photography", "seo", "content writing", "graphic design",
             "remittance", "guru.com", "freelancer.com",
             "physiotherapy", "physio", "therapy session", "therapy fee",
-            "medical session", "clinic payment", "treatment fee",
+            "medical session", "clinic", "treatment fee",
             "rehab", "rehabilitation", "home care", "health care service",
         ],
         "salary": [
@@ -28,6 +28,7 @@ RULES = {
             "dividend", "piggyvest interest", "cowrywise return",
             "savings account interest", "pb_sav_acct_interest",
             "interest credit", "acct interest",
+            "capitalized interest",
         ],
         "crypto_income": [
             "binance", "coinbase", "crypto", "bitcoin", "ethereum",
@@ -80,6 +81,7 @@ RULES = {
             "between accounts", "own account", "inter-account",
             "nip transfer", "alat nip", "onebank transfer", "mob/uto/",
             "personal transfer", "own transfer",
+            "nip cr/mob", "cip/cr", "online transfer",
         ],
         "loan": [
             "loan", "credit facility", "overdraft", "repayment",
@@ -92,6 +94,7 @@ RULES = {
         "atm": [
             "atm withdrawal", "cash withdrawal", "pos purchase",
             "pos transfer", "transfer to pos transfer",
+            "mc loc", "mc pos pyt", "mc agency",
         ],
         "savings": [
             "owealth withdrawal", "auto-save", "owealth balance",
@@ -108,10 +111,13 @@ RULES = {
             "emtl", "_emtl_dc", "value added tax", "transfer levy",
             "electroniclevy", "cbn electroniclevy", "nip-fee", "vat-fee",
             "alert charge", "quarterly debit", "card issuance fee",
+            "witholding tax", "withholding tax", "nip charge", "sms charge",
+            "charge + vat", "charge vat",
         ],
         "airtime_data": [
             "airtime recharge", "airtime |", "vtu airtime",
             "airtime to", "airtime purchase", "/atp|",
+            "airtime//", "bundle//",
         ],
     },
 }

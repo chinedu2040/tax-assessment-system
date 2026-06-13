@@ -82,6 +82,9 @@ def normalise(raw_records: List[Dict[str, Any]], source_format: str) -> List[Dic
 
     for rec in raw_records:
         date_str = _parse_date(rec.get("date", ""))
+        # Skip footer/total rows whose date field isn't a real date (e.g. "TOTALS")
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+            continue
         raw_desc = str(rec.get("description", "")).strip()
         description = _clean_description(raw_desc)
 
