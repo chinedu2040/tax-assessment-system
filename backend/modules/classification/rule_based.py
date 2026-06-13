@@ -11,18 +11,22 @@ RULES = {
             "web design", "logo design", "brand", "ui/ux", "motion graphics",
             "photography", "seo", "content writing", "graphic design",
             "remittance", "guru.com", "freelancer.com",
+            "physiotherapy", "physio", "therapy session", "therapy fee",
+            "medical session", "clinic payment", "treatment fee",
         ],
         "salary": [
             "salary", "salari", "monthly pay", "payroll", "wages",
             "staff pay", "net pay", "basic pay",
         ],
         "business_income": [
-            "sales proceeds", "business income", "revenue", "proceeds",
-            "media house", "enterprises",
+            "sales proceeds", "business income", "business revenue",
+            "media house income", "company payment",
         ],
         "interest_income": [
             "owealth interest", "interest earned", "investment income",
             "dividend", "piggyvest interest", "cowrywise return",
+            "savings account interest", "pb_sav_acct_interest",
+            "interest credit", "acct interest",
         ],
         "crypto_income": [
             "binance", "coinbase", "crypto", "bitcoin", "ethereum",
@@ -49,6 +53,7 @@ RULES = {
             "mtn", "airtel", "glo", "9mobile", "spectranet", "swift",
             "smile", "internet", "data subscription", "broadband",
             "data bundle", "wifi subscription", "mobile data |",
+            "data purchase", "data purchase to",
         ],
         "utilities": [
             "nepa", "disco", "electricity", "ikedc", "ekedc", "bedc",
@@ -72,6 +77,8 @@ RULES = {
         "transfer": [
             "transfer to", "transfer from", "trf", "intra-bank",
             "between accounts", "own account", "inter-account",
+            "nip transfer", "alat nip", "onebank transfer", "mob/uto/",
+            "personal transfer", "own transfer",
         ],
         "loan": [
             "loan", "credit facility", "overdraft", "repayment",
@@ -82,19 +89,23 @@ RULES = {
         ],
         "atm": [
             "atm withdrawal", "cash withdrawal", "pos purchase",
+            "pos transfer", "transfer to pos transfer",
         ],
         "savings": [
             "owealth withdrawal", "auto-save", "owealth balance",
             "savings deposit", "fixed deposit", "target savings",
             "piggybank", "cowrywise", "risevest", "bamboo",
+            "flexible savings", "auto save", "one year plan",
         ],
         "bank_charge": [
             "electronic money transfer levy", "stamp duty", "sms alert",
             "maintenance fee", "card maintenance", "vat on ", "commission on",
             "bank charge", "service charge",
+            "emtl", "_emtl_dc", "value added tax", "transfer levy",
         ],
         "airtime_data": [
             "airtime recharge", "airtime |", "vtu airtime",
+            "airtime to", "airtime purchase", "/atp|",
         ],
     },
 }

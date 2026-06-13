@@ -1,6 +1,7 @@
 import io
 import re
 import logging
+import zipfile
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -12,16 +13,41 @@ logger = logging.getLogger(__name__)
 
 DATE_COLS = ["Trans. Date", "Transaction Date", "Value Date", "Date", "Txn Date", "BookingDate", "date", "Trans Date"]
 DESC_COLS = ["Narration", "Description", "Details", "Remarks", "Transaction Details", "Particulars", "description", "Memo"]
-DEBIT_COLS = ["Debit", "Withdrawals", "Dr", "Debit Amount", "Debit("]
-CREDIT_COLS = ["Credit", "Deposits", "Cr", "Credit Amount", "Credit("]
-AMOUNT_COLS = ["Amount", "amount"]
+DEBIT_COLS  = ["Debit", "Withdrawals", "Dr", "Debit Amount", "Debit(", "Settlement Debit"]
+CREDIT_COLS = ["Credit", "Deposits", "Cr", "Credit Amount", "Credit(", "Settlement Credit"]
+AMOUNT_COLS = ["Amount", "amount", "Transaction Amount"]
 BALANCE_COLS = ["Balance", "Running Balance", "Ledger Balance", "Balance After"]
+
+# Supplementary columns used for description enrichment when primary narration is blank
+_REF_COLS  = ["Transaction Ref", "Reference", "Transaction Reference", "Ref"]
+_TYPE_COLS = ["Transaction Type", "Type"]
+_BEN_COLS  = ["Beneficiary", "Beneficiary Name"]
 
 ALL_HEADER_CANDIDATES = DATE_COLS + DESC_COLS + DEBIT_COLS + CREDIT_COLS + AMOUNT_COLS
 
 
+def _repair_xlsx(file_bytes: bytes) -> bytes:
+    """Fix xlsx files that have invalid stylesheet XML (e.g. Moniepoint exports).
+    Removes the offending vertical-alignment attribute so openpyxl can open them."""
+    buf = io.BytesIO()
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zin:
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zout:
+                for name in zin.namelist():
+                    data = zin.read(name)
+                    if name == "xl/styles.xml":
+                        xml = data.decode("utf-8", errors="replace")
+                        xml = re.sub(r'\bvertical="[^"]*"', "", xml)
+                        data = xml.encode("utf-8")
+                    zout.writestr(name, data)
+    except Exception as e:
+        logger.warning(f"xlsx repair failed: {e}")
+        return file_bytes
+    return buf.getvalue()
+
+
 def _find_col(df_cols, candidates):
-    """Find column by exact match first, then prefix match (handles 'Debit(₦)' etc)."""
+    """Find column by exact match first, then prefix match (handles 'Debit(₦)', 'Settlement Debit (NGN)' etc)."""
     for c in candidates:
         c_lower = c.lower()
         for col in df_cols:
@@ -29,6 +55,31 @@ def _find_col(df_cols, candidates):
             if col_lower == c_lower or col_lower.startswith(c_lower):
                 return col
     return None
+
+
+def _enrich_description(row, cols: list) -> str:
+    """Build a fallback description from supplementary columns when the primary narration is blank."""
+    # Check Transaction Ref for known Moniepoint system patterns
+    ref_col = _find_col(cols, _REF_COLS)
+    if ref_col:
+        ref = str(row.get(ref_col, "")).upper()
+        if "_EMTL_DC" in ref or ref.startswith("EMTL"):
+            return "electronic money transfer levy"
+        if "INTR" in ref and "INTEREST" in ref:
+            return "savings account interest"
+    # Try Beneficiary name
+    ben_col = _find_col(cols, _BEN_COLS)
+    if ben_col:
+        val = str(row.get(ben_col, "")).strip()
+        if val and val.lower() not in ("nan", "none", ""):
+            return val
+    # Try Transaction Type
+    type_col = _find_col(cols, _TYPE_COLS)
+    if type_col:
+        val = str(row.get(type_col, "")).strip()
+        if val and val.lower() not in ("nan", "none", ""):
+            return val
+    return ""
 
 
 def _find_header_row(df_raw) -> int:
@@ -61,7 +112,11 @@ def _df_to_raw(df: pd.DataFrame, source_format: str) -> List[Dict[str, Any]]:
     for _, row in df.iterrows():
         rec: Dict[str, Any] = {}
         rec["date"] = row[date_col] if date_col else ""
-        rec["description"] = row[desc_col] if desc_col else ""
+
+        raw_desc = str(row[desc_col]).strip() if desc_col else ""
+        if raw_desc.lower() in ("", "nan", "none"):
+            raw_desc = _enrich_description(row, cols)
+        rec["description"] = raw_desc
 
         if debit_col or credit_col:
             rec["_debit"] = row[debit_col] if debit_col else None
@@ -103,12 +158,23 @@ def _parse_sheet(xf, sheet) -> List[Dict[str, Any]]:
 
 
 def parse_excel(file_bytes: bytes) -> List[Dict[str, Any]]:
-    xf = pd.ExcelFile(io.BytesIO(file_bytes))
-    all_records: List[Dict[str, Any]] = []
+    def _try_parse(data: bytes) -> List[Dict[str, Any]]:
+        xf = pd.ExcelFile(io.BytesIO(data))
+        all_records: List[Dict[str, Any]] = []
+        for sheet in xf.sheet_names:
+            records = _parse_sheet(xf, sheet)
+            all_records.extend(records)
+        return all_records
 
-    for sheet in xf.sheet_names:
-        records = _parse_sheet(xf, sheet)
-        all_records.extend(records)
+    try:
+        all_records = _try_parse(file_bytes)
+    except Exception as e:
+        logger.warning(f"Excel parse failed ({e}), attempting stylesheet repair…")
+        repaired = _repair_xlsx(file_bytes)
+        try:
+            all_records = _try_parse(repaired)
+        except Exception as e2:
+            raise ValueError(f"Could not parse Excel file after repair: {e2}") from e2
 
     if not all_records:
         raise ValueError("Could not find any transactions in Excel file")
