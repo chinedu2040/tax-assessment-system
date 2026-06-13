@@ -53,10 +53,14 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
     txn_dicts = [
         {
             "transaction_id": str(t.transaction_id),
+            "date": t.date.strftime("%d %b %Y") if t.date else "",
             "amount": float(t.amount) if t.amount else 0,
             "direction": t.direction,
             "category": t.category,
-            "description": t.description,
+            "sub_category": t.sub_category or "",
+            "description": t.description or "",
+            "classification_method": t.classification_method or "",
+            "confidence_score": float(t.confidence_score) if t.confidence_score else 0.0,
         }
         for t in all_txns
     ]
