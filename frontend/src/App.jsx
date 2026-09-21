@@ -63,7 +63,7 @@ export default function App() {
       </main>
 
       <footer className="text-center py-4 text-xs text-gray-400 border-t border-gray-100">
-        Secure Tax Self-Assessment System · CSC/2018/169 · Udeze Chinedu Chinagorom · Supervised by Dr. H. O. Odukoya
+        Secure Tax Self-Assessment System · Udeze Chinedu Chinagorom · Supervised by Dr. H. O. Odukoya
       </footer>
     </div>
   )

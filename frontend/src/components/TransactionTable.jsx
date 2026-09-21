@@ -68,19 +68,29 @@ export default function TransactionTable({ transactions, onCategoryChange }) {
                 </select>
               </td>
               <td className="px-3 py-2 text-gray-500">{t.sub_category || '—'}</td>
-              <td className="px-3 py-2">
+              <td className="px-3 py-2 whitespace-nowrap">
                 <span
-                  className={`inline-block px-1.5 py-0.5 rounded text-xs ${
-                    t.classification_method === 'rule'
+                  className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
+                    t.classification_method === 'rule_based' || t.classification_method === 'rule'
                       ? 'bg-green-100 text-green-700'
+                      : t.classification_method === 'user_correction'
+                      ? 'bg-purple-100 text-purple-700'
                       : t.classification_method === 'nlp'
                       ? 'bg-blue-100 text-blue-700'
                       : t.classification_method === 'flagged'
                       ? 'bg-amber-100 text-amber-700'
-                      : 'bg-purple-100 text-purple-700'
+                      : 'bg-gray-100 text-gray-500'
                   }`}
                 >
-                  {t.classification_method || '—'}
+                  {t.classification_method === 'rule_based' || t.classification_method === 'rule'
+                    ? 'Rule'
+                    : t.classification_method === 'user_correction'
+                    ? 'Manual'
+                    : t.classification_method === 'nlp'
+                    ? 'NLP'
+                    : t.classification_method === 'flagged'
+                    ? 'Flagged'
+                    : t.classification_method || '—'}
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-mono text-gray-500">

@@ -108,7 +108,7 @@ app = FastAPI(
         "email": "your-email@example.com",
     },
     license_info={
-        "name": "Academic Project — CSC/2018/169",
+        "name": "Academic Project",
     },
 )
 

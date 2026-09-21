@@ -15,8 +15,6 @@ export default function Navbar() {
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-4 text-green-100 text-sm">
-            <span>CSC/2018/169</span>
-            <span className="text-green-300">|</span>
             <span>Udeze Chinedu Chinagorom</span>
           </div>
         </div>
