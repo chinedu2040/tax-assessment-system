@@ -71,6 +71,12 @@ def get_transactions(document_id: str, db: Session = Depends(get_db)):
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
+        # Always update name and TIN so the current session's details are used
+        existing.full_name = payload.full_name
+        if payload.tin:
+            existing.tin = payload.tin
+        db.commit()
+        db.refresh(existing)
         return UserOut(
             user_id=str(existing.user_id),
             email=existing.email,
