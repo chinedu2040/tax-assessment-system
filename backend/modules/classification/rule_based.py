@@ -103,6 +103,7 @@ RULES = {
             "flexible savings", "auto save", "one year plan",
             "money market", "uba nominee", "stanbic ibtc money",
             "mutual fund", "treasury bill", "t-bill",
+            "pocket_disburse", "pocket disburse",
         ],
         "bank_charge": [
             "electronic money transfer levy", "stamp duty", "sms alert",
@@ -118,6 +119,10 @@ RULES = {
             "airtime recharge", "airtime |", "vtu airtime",
             "airtime to", "airtime purchase", "/atp|",
             "airtime//", "bundle//",
+        ],
+        "personal_expense": [
+            "family feeding", "food", "injection",
+            "half bag of rice",
         ],
     },
 }

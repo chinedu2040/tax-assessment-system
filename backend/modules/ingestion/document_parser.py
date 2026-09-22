@@ -294,6 +294,159 @@ def _pdf_norm_row(rec: dict) -> dict:
     return norm
 
 
+# ── Bank-specific PDF parsers ─────────────────────────────────────────────
+
+_OPAY_CELL_DATE_RE = re.compile(r'(\d{2}\s+\w+\s+\d{4})\s+\d{2}:\d{2}:\d{2}')
+_OPAY_VDATE_RE     = re.compile(r'^\d{2}\s+\w+\s+\d{4}\s*')
+
+
+def _parse_opay_merged_cell(cell: str):
+    """
+    Parse OPay merged cell where all columns are concatenated into one string.
+    Returns (date_str, desc, debit_str, credit_str) or (None, None, None, None).
+
+    Format 1 — date at start:
+        "DATE TIME VDATE Description DEBIT CREDIT BALANCE Mobile REF"
+    Format 2 — description before date (wraps):
+        "Description DATE TIME VDATE DEBIT CREDIT BALANCE Mobile MoreDesc"
+    """
+    parts = cell.split()
+    if len(parts) < 7:
+        return None, None, None, None
+
+    # Find the last occurrence of 'Mobile' (the channel column)
+    channel_idx = None
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] == 'Mobile':
+            channel_idx = i
+            break
+    if channel_idx is None or channel_idx < 3:
+        return None, None, None, None
+
+    debit_str  = parts[channel_idx - 3]
+    credit_str = parts[channel_idx - 2]
+
+    # Find date in everything before the amounts
+    before_amounts = ' '.join(parts[:channel_idx - 3])
+    date_m = _OPAY_CELL_DATE_RE.search(before_amounts)
+    if not date_m:
+        return None, None, None, None
+    date_str = date_m.group(1)
+
+    before_date  = before_amounts[:date_m.start()].strip()
+    after_dt     = before_amounts[date_m.end():].strip()
+    after_vdate  = _OPAY_VDATE_RE.sub('', after_dt).strip()
+
+    # Extra description that appears after the reference (wrapping)
+    after_ref = ' '.join(parts[channel_idx + 2:]).strip()
+
+    desc = ' '.join(p for p in [before_date, after_vdate, after_ref] if p)
+    return date_str, desc, debit_str, credit_str
+
+
+def _parse_opay_pdf(pdf) -> List[Dict[str, Any]]:
+    """
+    OPay account statement PDF (wallet + OWealth structure).
+    Tables come in two shapes: 8-col (page 1) and 12-col padded (subsequent pages).
+    Each transaction appears as either a properly-extracted row or a merged-cell row.
+    """
+    records = []
+    for page in pdf.pages:
+        for table in page.extract_tables():
+            if not table:
+                continue
+            n_cols = len(table[0])
+            if n_cols not in (8, 12):
+                continue
+
+            col_offset = 0 if n_cols == 8 else 2
+            first_cells = [str(c).strip().lower() if c else '' for c in table[0]]
+
+            # Determine if table[0] is a header or a data row
+            is_header = 'trans' in (first_cells[col_offset] or '')
+            data_rows = table[1:] if is_header else table
+
+            for row in data_rows:
+                if not row or len(row) < n_cols:
+                    continue
+                c0 = row[col_offset]
+                c1 = row[col_offset + 1]
+                c2 = row[col_offset + 2]
+                c3 = row[col_offset + 3]
+                c4 = row[col_offset + 4]
+
+                if c1 is not None:
+                    # Properly extracted row — all cells populated
+                    date_str = str(c0 or '').replace('\n', ' ').strip()
+                    desc     = str(c2 or '').replace('\n', ' ').strip()
+                    debit    = str(c3 or '').strip()
+                    credit   = str(c4 or '').strip()
+                else:
+                    # Merged row — entire record crammed into first cell
+                    cell = str(c0 or '').replace('\n', ' ').strip()
+                    date_str, desc, debit, credit = _parse_opay_merged_cell(cell)
+
+                if not date_str or not desc:
+                    continue
+                records.append({
+                    'date': date_str,
+                    'description': desc,
+                    '_debit':  None if (debit  or '').strip() == '--' else debit,
+                    '_credit': None if (credit or '').strip() == '--' else credit,
+                })
+
+    if not records:
+        return []
+    return normalise(records, 'pdf')
+
+
+def _parse_moniepoint_pdf(pdf) -> List[Dict[str, Any]]:
+    """
+    Moniepoint bank statement PDF.
+    Each transaction is a separate 1-row table with 6 columns:
+    Date | Narration | Reference | Debit | Credit | Balance
+    """
+    def _nonzero(s: str):
+        try:
+            return float(str(s).replace(',', '')) != 0.0
+        except (ValueError, AttributeError):
+            return False
+
+    records = []
+    for page in pdf.pages:
+        for table in page.extract_tables():
+            if not table or len(table[0]) != 6:
+                continue
+            row = table[0]
+            date_raw  = str(row[0] or '').replace('\n', ' ').strip()
+            desc      = str(row[1] or '').replace('\n', ' ').strip()
+            debit_raw = str(row[3] or '').strip()
+            credit_raw = str(row[4] or '').strip()
+
+            # Skip header rows
+            if date_raw.lower() in ('date', 'trans. date', 'posting date', ''):
+                continue
+            if not desc:
+                continue
+
+            debit  = debit_raw  if _nonzero(debit_raw)  else None
+            credit = credit_raw if _nonzero(credit_raw) else None
+
+            if debit is None and credit is None:
+                continue
+
+            records.append({
+                'date': date_raw,
+                'description': desc,
+                '_debit':  debit,
+                '_credit': credit,
+            })
+
+    if not records:
+        return []
+    return normalise(records, 'pdf')
+
+
 # ── Strategy 1 ─ Table extraction (grid PDFs: Zenith, Access, First Bank) ─
 
 def _parse_pdf_tables(pdf) -> List[Dict[str, Any]]:
@@ -496,6 +649,11 @@ def parse_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
     """
     Multi-strategy PDF parser for Nigerian bank statements.
 
+    Bank-specific (detected from content):
+    0a. OPay account statement  — mixed table/merged-cell format
+    0b. Moniepoint PDF          — one transaction per 1-row table
+
+    Generic fallback pipeline:
     1. pdfplumber table extraction — grid PDFs (Zenith Bank, Access Bank, First Bank)
     2. Coordinate word extraction  — text PDFs (GTBank pdfkit, UBA, FCMB, Stanbic)
     3. Line-by-line + CR/DR       — simple text PDFs
@@ -505,6 +663,26 @@ def parse_pdf(file_bytes: bytes) -> List[Dict[str, Any]]:
 
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
         logger.info(f"PDF parser: {len(pdf.pages)} pages")
+
+        # Detect bank from first-page text
+        try:
+            first_text = pdf.pages[0].extract_text() or ""
+        except Exception:
+            first_text = ""
+
+        if "Trans. Time" in first_text:          # OPay signature column
+            result = _parse_opay_pdf(pdf)
+            if result:
+                logger.info(f"PDF OPay parser: {len(result)} transactions")
+                return result
+
+        if ("Narration" in first_text             # Moniepoint column header
+                and "Reference" in first_text
+                and "Balance" in first_text):
+            result = _parse_moniepoint_pdf(pdf)
+            if result:
+                logger.info(f"PDF Moniepoint parser: {len(result)} transactions")
+                return result
 
         result = _parse_pdf_tables(pdf)
         if result:

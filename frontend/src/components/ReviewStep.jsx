@@ -95,11 +95,20 @@ export default function ReviewStep({ uploadData, onConfirmComplete }) {
         </div>
       )}
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex flex-col items-end gap-3">
+        {needsReview > 0 && (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-right max-w-sm">
+            <span className="font-semibold">
+              {needsReview} transaction{needsReview !== 1 ? 's' : ''} still need{needsReview === 1 ? 's' : ''} review.
+            </span>
+            <br />
+            Use the Category dropdown on each amber row to classify it before generating the report.
+          </div>
+        )}
         <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="px-8 py-3 rounded-xl font-semibold text-white text-lg transition-opacity disabled:opacity-40"
+          onClick={needsReview > 0 ? undefined : handleConfirm}
+          disabled={loading || needsReview > 0}
+          className="px-8 py-3 rounded-xl font-semibold text-white text-lg transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: '#008751' }}
         >
           {loading ? 'Generating Report…' : 'Confirm & Generate Report'}
