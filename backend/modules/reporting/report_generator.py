@@ -14,7 +14,8 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# Register DejaVu fonts (include Naira sign U+20A6 and full Unicode)
+# Register DejaVu font family for full Unicode coverage (includes the Naira sign U+20A6).
+# fonts-dejavu-core is installed in the Docker image at the paths below.
 _DEJAVU_PATHS = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
@@ -28,24 +29,40 @@ _DEJAVU_BOLD_PATHS = [
 
 BODY_FONT = "Helvetica"
 BOLD_FONT = "Helvetica-Bold"
+_naira_ok = False   # True only when both regular and bold DejaVu loaded
 
+_reg_ok = False
 for _p in _DEJAVU_PATHS:
     if Path(_p).exists():
         try:
             pdfmetrics.registerFont(TTFont("DejaVuSans", _p))
             BODY_FONT = "DejaVuSans"
+            _reg_ok = True
         except Exception:
             pass
         break
 
+_bold_ok = False
 for _p in _DEJAVU_BOLD_PATHS:
     if Path(_p).exists():
         try:
             pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", _p))
             BOLD_FONT = "DejaVuSans-Bold"
+            _bold_ok = True
         except Exception:
             pass
         break
+
+if _reg_ok and _bold_ok:
+    try:
+        pdfmetrics.registerFontFamily(
+            "DejaVuSans",
+            normal="DejaVuSans",
+            bold="DejaVuSans-Bold",
+        )
+        _naira_ok = True
+    except Exception:
+        pass
 
 NIGERIAN_GREEN = colors.HexColor("#008751")
 LIGHT_GREEN = colors.HexColor("#e8f5e9")
@@ -56,9 +73,9 @@ MID_GREY = colors.HexColor("#757575")
 
 
 def _fmt_naira(amount: float) -> str:
-    # Use ₦ only when a Unicode font is loaded; fall back to NGN to avoid
-    # UnicodeEncodeError with Helvetica (Latin-1 encoding).
-    symbol = "₦" if BODY_FONT not in ("Helvetica", "Helvetica-Bold") else "NGN "
+    # Use the Naira symbol only when a Unicode-capable font is confirmed loaded;
+    # otherwise fall back to "NGN " to avoid encoding errors with Helvetica.
+    symbol = "₦" if _naira_ok else "NGN "
     return f"{symbol}{amount:,.2f}"
 
 
@@ -86,23 +103,28 @@ def generate_report(
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "Title", parent=styles["Heading1"],
+        fontName=BOLD_FONT,
         textColor=WHITE, fontSize=18, alignment=TA_CENTER,
         spaceAfter=6,
     )
     subtitle_style = ParagraphStyle(
         "Subtitle", parent=styles["Normal"],
+        fontName=BODY_FONT,
         textColor=WHITE, fontSize=10, alignment=TA_CENTER,
     )
     section_heading = ParagraphStyle(
         "SectionHeading", parent=styles["Heading2"],
+        fontName=BOLD_FONT,
         textColor=NIGERIAN_GREEN, fontSize=13, spaceBefore=16, spaceAfter=6,
     )
     body_style = ParagraphStyle(
         "Body", parent=styles["Normal"],
+        fontName=BODY_FONT,
         textColor=DARK_GREY, fontSize=9,
     )
     footer_style = ParagraphStyle(
         "Footer", parent=styles["Normal"],
+        fontName=BODY_FONT,
         textColor=MID_GREY, fontSize=7, alignment=TA_CENTER,
     )
 
@@ -111,7 +133,7 @@ def generate_report(
     # ── HEADER ──────────────────────────────────────────────────────────────
     header_table = Table(
         [[Paragraph("Secure Tax Self-Assessment System", title_style)],
-         [Paragraph("NDPR Compliant | FIRS 2024", subtitle_style)]],
+         [Paragraph("NDPR Compliant | Nigeria Tax Act 2025", subtitle_style)]],
         colWidths=[doc.width],
     )
     header_table.setStyle(TableStyle([
@@ -138,6 +160,7 @@ def generate_report(
     meta_table = Table(meta_data, colWidths=[3 * cm, 7 * cm, 3 * cm, 4 * cm])
     meta_table.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("FONTNAME", (0, 0), (-1, -1), BODY_FONT),
         ("FONTNAME", (0, 0), (0, -1), BOLD_FONT),
         ("FONTNAME", (2, 0), (2, -1), BOLD_FONT),
         ("TEXTCOLOR", (0, 0), (-1, -1), DARK_GREY),
@@ -150,18 +173,24 @@ def generate_report(
     # ── TAX SUMMARY TABLE ────────────────────────────────────────────────────
     story.append(Paragraph("Tax Summary", section_heading))
 
-    summary_rows = [
-        ["Description", "Amount"],
-        ["Gross Income", _fmt_naira(computation["gross_income"])],
-        ["Consolidated Relief Allowance (CRA)", _fmt_naira(computation["total_cra"])],
-        ["  — CRA Fixed Component", _fmt_naira(computation["cra_fixed"])],
-        ["  — CRA 20% of Gross Income", _fmt_naira(computation["cra_percentage"])],
-        ["Pension Relief (8%)", _fmt_naira(computation["pension_relief"])],
-        ["NHF Relief (2.5%)", _fmt_naira(computation["nhf_relief"])],
-        ["NHIS Relief (5%)", _fmt_naira(computation["nhis_relief"])],
-        ["Other Allowable Deductions", _fmt_naira(computation["other_deductions"])],
+    rent_relief = computation.get("rent_relief", computation.get("total_cra", 0))
+    has_rent_relief = rent_relief > 0
+
+    summary_rows = [["Description", "Amount"]]
+    summary_rows.append(["Gross Income (taxable credits)", _fmt_naira(computation["gross_income"])])
+
+    if has_rent_relief:
+        summary_rows.append(
+            ["Rent Relief (NTA 2025 - lower of NGN 500,000 or 20% of rent)",
+             _fmt_naira(rent_relief)]
+        )
+    else:
+        summary_rows.append(["Rent Relief (NTA 2025)", "Nil - no rent declared"])
+
+    summary_rows += [
+        ["Allowable Business Deductions", _fmt_naira(computation["other_deductions"])],
         ["Taxable Income", _fmt_naira(computation["taxable_income"])],
-        ["Tax Liability (FIRS Progressive)", _fmt_naira(computation["tax_liability"])],
+        ["Tax Liability (NTA 2025 Progressive)", _fmt_naira(computation["tax_liability"])],
         ["State Development Levy (" + str(computation.get("state_of_residence", "")) + ")",
          _fmt_naira(computation.get("development_levy", 0))],
         ["TOTAL TAX PAYABLE", _fmt_naira(computation.get("total_tax_payable", computation["tax_liability"]))],
@@ -173,6 +202,7 @@ def generate_report(
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
         ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
+        ("FONTNAME", (0, 1), (-1, -1), BODY_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, LIGHT_GREEN]),
@@ -205,6 +235,7 @@ def generate_report(
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
         ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
+        ("FONTNAME", (0, 1), (-1, -2), BODY_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -2), [WHITE, LIGHT_GREEN]),
@@ -255,6 +286,7 @@ def generate_report(
         ("BACKGROUND", (0, 0), (-1, 0), NIGERIAN_GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), WHITE),
         ("FONTNAME", (0, 0), (-1, 0), BOLD_FONT),
+        ("FONTNAME", (0, 1), (-1, -2), BODY_FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 7),
         ("ROWBACKGROUNDS", (0, 1), (-1, -2), [WHITE, LIGHT_GREEN]),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
@@ -275,7 +307,7 @@ def generate_report(
     story.append(Paragraph(
         "In compliance with the Nigeria Data Protection Regulation (NDPR)", footer_style
     ))
-    story.append(Paragraph("Tax rules sourced from FIRS 2024 guidelines", footer_style))
+    story.append(Paragraph("Tax rules sourced from Nigeria Tax Act 2025", footer_style))
 
     doc.build(story)
     return report_path

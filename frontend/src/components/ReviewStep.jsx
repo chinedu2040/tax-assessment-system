@@ -34,6 +34,7 @@ export default function ReviewStep({ uploadData, onConfirmComplete }) {
         tax_year: new Date().getFullYear(),
         state_of_residence: uploadData.state_of_residence || null,
         bank_name: uploadData.bank_name || null,
+        annual_rent: uploadData.annual_rent || 0,
       }
       const result = await confirmTransactions(payload)
       onConfirmComplete(result)
@@ -84,7 +85,7 @@ export default function ReviewStep({ uploadData, onConfirmComplete }) {
         </div>
         <div className="lg:w-64 flex-shrink-0">
           <div className="sticky top-6">
-            <TaxSummaryCard transactions={transactions} />
+            <TaxSummaryCard transactions={transactions} annualRent={uploadData.annual_rent || 0} />
           </div>
         </div>
       </div>

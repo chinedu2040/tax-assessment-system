@@ -11,12 +11,25 @@ def compute_tax(
     tax_year: int,
     db: Optional[Session] = None,
     state_of_residence: Optional[str] = None,
+    annual_rent: float = 0.0,
 ) -> Dict[str, Any]:
+    """
+    Compute personal income tax under the Nigeria Tax Act 2025 (effective 1 Jan 2026).
+
+    Key changes from the repealed PITA:
+    - Consolidated Relief Allowance (CRA) abolished; replaced by Rent Relief.
+    - Rent Relief = lower of NGN 500,000 or 20% of annual rent paid.
+    - First NGN 800,000 of taxable income is exempt (0% band).
+    - Minimum tax (1% of gross) no longer applies.
+    - Pension, NHF and NHIS reliefs are deductible only when actually paid;
+      they are captured through deductible_expense -> pension transaction classification.
+    """
     try:
         params = load_parameters(db) if db else DEFAULT_PARAMS
     except Exception:
         params = DEFAULT_PARAMS
 
+    # ── Income ────────────────────────────────────────────────────────────────
     gross_income = sum(
         float(t.get("amount", 0))
         for t in transactions
@@ -24,6 +37,8 @@ def compute_tax(
         and t.get("direction", "credit") == "credit"
     )
 
+    # Allowable business deductions (equipment, software, internet, etc.)
+    # Pension / NHF / NHIS are included here IF they appear as paid transactions.
     total_deductions = sum(
         float(t.get("amount", 0))
         for t in transactions
@@ -31,40 +46,33 @@ def compute_tax(
         and t.get("direction", "debit") == "debit"
     )
 
-    cra_fixed_base = float(params.get("cra_fixed_amount", 200_000))
-    cra_pct_rate = float(params.get("cra_percentage", 0.20))
-    min_trigger = float(params.get("minimum_cra_trigger", 0.01))
+    # ── Rent Relief (NTA 2025 — replaces CRA) ────────────────────────────────
+    rent_relief_cap = float(params.get("rent_relief_cap", 500_000))
+    rent_relief_pct = float(params.get("rent_relief_pct", 0.20))
+    rent_relief = min(rent_relief_cap, rent_relief_pct * annual_rent) if annual_rent > 0 else 0.0
 
-    cra_fixed = max(cra_fixed_base, min_trigger * gross_income)
-    cra_percentage = cra_pct_rate * gross_income
-    total_cra = cra_fixed + cra_percentage
+    # Pension / NHF / NHIS are not auto-applied; set to zero here.
+    pension_relief = 0.0
+    nhf_relief = 0.0
+    nhis_relief = 0.0
 
-    pension_rate = float(params.get("pension_employee_rate", 0.08))
-    nhf_rate = float(params.get("nhf_rate", 0.025))
-    nhis_rate = float(params.get("nhis_rate", 0.05))
+    # ── Taxable Income ────────────────────────────────────────────────────────
+    taxable_income = max(0.0, gross_income - rent_relief - total_deductions)
 
-    pension_relief = pension_rate * gross_income
-    nhf_relief = nhf_rate * gross_income
-    nhis_relief = nhis_rate * gross_income
-
-    taxable_income = max(
-        0,
-        gross_income - total_cra - pension_relief - nhf_relief - nhis_relief - total_deductions,
-    )
-
-    band1_upper = float(params.get("band1_upper", 300_000))
-    band2_upper = float(params.get("band2_upper", 600_000))
-    band3_upper = float(params.get("band3_upper", 1_100_000))
-    band4_upper = float(params.get("band4_upper", 1_600_000))
-    band5_upper = float(params.get("band5_upper", 3_200_000))
+    # ── NTA 2025 Progressive Bands ────────────────────────────────────────────
+    band1_upper = float(params.get("band1_upper", 800_000))
+    band2_upper = float(params.get("band2_upper", 3_000_000))
+    band3_upper = float(params.get("band3_upper", 12_000_000))
+    band4_upper = float(params.get("band4_upper", 25_000_000))
+    band5_upper = float(params.get("band5_upper", 50_000_000))
 
     bands = [
-        (band1_upper, float(params.get("band1_rate", 0.07))),
-        (band2_upper - band1_upper, float(params.get("band2_rate", 0.11))),
-        (band3_upper - band2_upper, float(params.get("band3_rate", 0.15))),
-        (band4_upper - band3_upper, float(params.get("band4_rate", 0.19))),
-        (band5_upper - band4_upper, float(params.get("band5_rate", 0.21))),
-        (float("inf"), float(params.get("band6_rate", 0.24))),
+        (band1_upper,                  float(params.get("band1_rate", 0.00))),
+        (band2_upper - band1_upper,    float(params.get("band2_rate", 0.15))),
+        (band3_upper - band2_upper,    float(params.get("band3_rate", 0.18))),
+        (band4_upper - band3_upper,    float(params.get("band4_rate", 0.21))),
+        (band5_upper - band4_upper,    float(params.get("band5_rate", 0.23))),
+        (float("inf"),                 float(params.get("band6_rate", 0.25))),
     ]
 
     tax_liability = 0.0
@@ -84,12 +92,9 @@ def compute_tax(
         })
         remaining -= taxable_in_band
 
-    min_tax_rate = float(params.get("minimum_tax_rate", 0.01))
-    minimum_tax = min_tax_rate * gross_income
-    if tax_liability < minimum_tax:
-        tax_liability = minimum_tax
+    # NTA 2025: Minimum tax (1% rule) is abolished; replaced by the 0% band.
 
-    # State development levy
+    # ── State Development Levy ────────────────────────────────────────────────
     state_info = get_state_info(state_of_residence or "")
     development_levy = float(state_info["development_levy"])
     total_tax_payable = tax_liability + development_levy
@@ -100,12 +105,14 @@ def compute_tax(
         "user_id": user_id,
         "tax_year": tax_year,
         "gross_income": round(gross_income, 2),
-        "cra_fixed": round(cra_fixed, 2),
-        "cra_percentage": round(cra_percentage, 2),
-        "total_cra": round(total_cra, 2),
-        "pension_relief": round(pension_relief, 2),
-        "nhf_relief": round(nhf_relief, 2),
-        "nhis_relief": round(nhis_relief, 2),
+        "rent_relief": round(rent_relief, 2),
+        # DB-compatible aliases: cra columns repurposed to store rent relief
+        "cra_fixed": 0.0,
+        "cra_percentage": round(rent_relief, 2),
+        "total_cra": round(rent_relief, 2),
+        "pension_relief": pension_relief,
+        "nhf_relief": nhf_relief,
+        "nhis_relief": nhis_relief,
         "other_deductions": round(total_deductions, 2),
         "taxable_income": round(taxable_income, 2),
         "tax_liability": round(tax_liability, 2),

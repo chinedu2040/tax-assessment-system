@@ -31,7 +31,7 @@ export default function ReportStep({ confirmData }) {
     <div className="max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-1">Your Tax Assessment Report</h2>
       <p className="text-gray-500 text-sm mb-6">
-        Based on FIRS 2024 Personal Income Tax Act guidelines.
+        Based on Nigeria Tax Act 2025 guidelines (effective 1 January 2026).
       </p>
 
       {/* State & bank info bar */}
@@ -54,14 +54,9 @@ export default function ReportStep({ confirmData }) {
           sub="Total taxable credits"
         />
         <SummaryCard
-          label="Total Relief"
-          value={fmtNaira(
-            (computation.total_cra || 0) +
-            (computation.pension_relief || 0) +
-            (computation.nhf_relief || 0) +
-            (computation.nhis_relief || 0)
-          )}
-          sub="CRA + Pension + NHF + NHIS"
+          label="Rent Relief"
+          value={fmtNaira(computation.rent_relief ?? computation.total_cra ?? 0)}
+          sub="NTA 2025 (up to NGN 500,000)"
         />
         <SummaryCard
           label="Taxable Income"
@@ -98,7 +93,7 @@ export default function ReportStep({ confirmData }) {
         <p className="text-4xl font-bold mt-1">
           {Number(computation.effective_rate || 0).toFixed(2)}%
         </p>
-        <p className="text-xs opacity-70 mt-1">FIRS 2024 — Progressive Rate Schedule</p>
+        <p className="text-xs opacity-70 mt-1">Nigeria Tax Act 2025 | Progressive Rate Schedule</p>
       </div>
 
       {/* Band breakdown chart */}

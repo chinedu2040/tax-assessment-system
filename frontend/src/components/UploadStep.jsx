@@ -34,6 +34,7 @@ export default function UploadStep({ onUploadComplete }) {
   const [tin, setTin] = useState('')
   const [bankName, setBankName] = useState('')
   const [stateOfResidence, setStateOfResidence] = useState('')
+  const [annualRent, setAnnualRent] = useState('')
 
   function validateFile(f) {
     const ext = '.' + f.name.split('.').pop().toLowerCase()
@@ -84,6 +85,7 @@ export default function UploadStep({ onUploadComplete }) {
         user_id: user.user_id,
         bank_name: bankName,
         state_of_residence: stateOfResidence,
+        annual_rent: annualRent ? parseFloat(annualRent) : 0,
       })
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || 'Upload failed'
@@ -153,6 +155,20 @@ export default function UploadStep({ onUploadComplete }) {
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">
+            Annual Rent Paid (₦) <span className="text-gray-400">— optional, for Rent Relief under NTA 2025</span>
+          </label>
+          <input
+            type="number"
+            min="0"
+            placeholder="e.g. 600000"
+            value={annualRent}
+            onChange={e => setAnnualRent(e.target.value)}
+            className={inputClass}
+          />
         </div>
 
         <div>

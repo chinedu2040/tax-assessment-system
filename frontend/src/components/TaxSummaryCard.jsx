@@ -2,49 +2,55 @@ function fmtNaira(n) {
   return '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })
 }
 
-function computeLiveSummary(transactions) {
+// NTA 2025 progressive bands (PwC, reviewed 29 May 2026)
+const NTA_BANDS = [
+  [800_000, 0.00],
+  [2_200_000, 0.15],
+  [9_000_000, 0.18],
+  [13_000_000, 0.21],
+  [25_000_000, 0.23],
+  [Infinity, 0.25],
+]
+
+function computeLiveSummary(transactions, annualRent = 0) {
   let grossIncome = 0
   transactions.forEach((t) => {
     if (t.category === 'taxable_income' && t.direction === 'credit') {
       grossIncome += Number(t.amount || 0)
     }
   })
-  const craFixed = Math.max(200_000, 0.01 * grossIncome)
-  const craPercent = 0.20 * grossIncome
-  const totalCRA = craFixed + craPercent
-  const pension = 0.08 * grossIncome
-  const nhf = 0.025 * grossIncome
-  const nhis = 0.05 * grossIncome
-  const taxable = Math.max(0, grossIncome - totalCRA - pension - nhf - nhis)
 
-  // Simple band computation
-  const bands = [
-    [300_000, 0.07],
-    [300_000, 0.11],
-    [500_000, 0.15],
-    [500_000, 0.19],
-    [1_600_000, 0.21],
-    [Infinity, 0.24],
-  ]
+  // Rent Relief: lower of NGN 500,000 or 20% of annual rent
+  const rentRelief = annualRent > 0 ? Math.min(500_000, 0.20 * annualRent) : 0
+
+  // Allowable deductions from classified transactions
+  let deductions = 0
+  transactions.forEach((t) => {
+    if (t.category === 'deductible_expense' && t.direction === 'debit') {
+      deductions += Number(t.amount || 0)
+    }
+  })
+
+  const taxable = Math.max(0, grossIncome - rentRelief - deductions)
+
   let tax = 0
   let rem = taxable
-  for (const [limit, rate] of bands) {
+  for (const [limit, rate] of NTA_BANDS) {
     if (rem <= 0) break
     const chunk = Math.min(rem, limit)
     tax += chunk * rate
     rem -= chunk
   }
-  tax = Math.max(tax, 0.01 * grossIncome)
 
-  return { grossIncome, totalCRA, taxable, tax }
+  return { grossIncome, rentRelief, deductions, taxable, tax }
 }
 
-export default function TaxSummaryCard({ transactions }) {
-  const { grossIncome, totalCRA, taxable, tax } = computeLiveSummary(transactions)
+export default function TaxSummaryCard({ transactions, annualRent = 0 }) {
+  const { grossIncome, rentRelief, deductions, taxable, tax } = computeLiveSummary(transactions, annualRent)
 
   const items = [
     { label: 'Gross Income', value: fmtNaira(grossIncome), highlight: false },
-    { label: 'Est. CRA', value: fmtNaira(totalCRA), highlight: false },
+    { label: 'Rent Relief (NTA 2025)', value: rentRelief > 0 ? fmtNaira(rentRelief) : 'Nil', highlight: false },
     { label: 'Est. Taxable Income', value: fmtNaira(taxable), highlight: false },
     { label: 'Est. Tax Liability', value: fmtNaira(tax), highlight: true },
   ]
@@ -70,7 +76,7 @@ export default function TaxSummaryCard({ transactions }) {
         ))}
       </div>
       <p className="text-xs text-gray-400 mt-4">
-        * Live estimate based on current categories. Final figure computed after confirmation.
+        * Live estimate (NTA 2025). Final figure computed on confirmation.
       </p>
     </div>
   )

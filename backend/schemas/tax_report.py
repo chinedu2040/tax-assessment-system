@@ -14,12 +14,13 @@ class TaxComputation(BaseModel):
     user_id: str
     tax_year: int
     gross_income: float
-    cra_fixed: float
-    cra_percentage: float
-    total_cra: float
-    pension_relief: float
-    nhf_relief: float
-    nhis_relief: float
+    rent_relief: float = 0.0     # NTA 2025 — replaces CRA
+    cra_fixed: float = 0.0       # kept for DB compatibility (always 0 under NTA 2025)
+    cra_percentage: float = 0.0  # kept for DB compatibility (stores rent_relief amount)
+    total_cra: float = 0.0       # kept for DB compatibility (stores rent_relief amount)
+    pension_relief: float = 0.0
+    nhf_relief: float = 0.0
+    nhis_relief: float = 0.0
     other_deductions: float
     taxable_income: float
     tax_liability: float
@@ -38,6 +39,7 @@ class ConfirmRequest(BaseModel):
     tax_year: int
     state_of_residence: Optional[str] = None
     bank_name: Optional[str] = None
+    annual_rent: float = 0.0    # annual rent paid by taxpayer (for rent relief calculation)
 
 
 class ConfirmResponse(BaseModel):

@@ -65,7 +65,14 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
         for t in all_txns
     ]
 
-    result = compute_tax(txn_dicts, payload.user_id, payload.tax_year, db, payload.state_of_residence)
+    result = compute_tax(
+        txn_dicts,
+        payload.user_id,
+        payload.tax_year,
+        db,
+        payload.state_of_residence,
+        annual_rent=float(payload.annual_rent or 0),
+    )
 
     db.add(AuditLog(
         user_id=payload.user_id,
