@@ -24,10 +24,15 @@ def compute_tax(
     - Pension, NHF and NHIS reliefs are deductible only when actually paid;
       they are captured through deductible_expense -> pension transaction classification.
     """
+    # DEFAULT_PARAMS (NTA 2025) always takes precedence over stale DB rows.
+    # The statutory_parameters table may still contain old PITA values from
+    # before the law change; merging this way ensures code-defined NTA 2025
+    # rates win while preserving any DB-only keys added in the future.
     try:
-        params = load_parameters(db) if db else DEFAULT_PARAMS
+        db_params = load_parameters(db) if db else {}
     except Exception:
-        params = DEFAULT_PARAMS
+        db_params = {}
+    params = {**db_params, **DEFAULT_PARAMS}
 
     # ── Income ────────────────────────────────────────────────────────────────
     gross_income = sum(

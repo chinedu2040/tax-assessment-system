@@ -169,6 +169,7 @@ def confirm_and_compute(payload: ConfirmRequest, db: Session = Depends(get_db)):
         user_id=payload.user_id,
         tax_year=payload.tax_year,
         gross_income=result["gross_income"],
+        rent_relief=result["rent_relief"],
         cra_fixed=result["cra_fixed"],
         cra_percentage=result["cra_percentage"],
         total_cra=result["total_cra"],
